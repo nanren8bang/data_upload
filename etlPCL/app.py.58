@@ -1,0 +1,117 @@
+
+import importlib
+import os
+import time
+import configparser
+import concurrent.futures
+import subprocess
+from datetime import date
+
+from bo.mysql.variant_drug   import variant_drug   as drugBO
+from da.mysql.variant_drugDA import variant_drugDA as drugDA
+from bo.mysql.boList         import boList
+
+def execute_command(command, exit_script = 1):
+
+    print('Will excute  commad '+command+"\n")
+
+    p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    response, error = p.communicate()
+    if error:
+        print("FAILED to run command: %s - Reason: %s"%(command,error))
+        os.killpg(os.getpgrp(),2)
+    return response, error
+
+
+def main():
+    myDir     = os.path.dirname(os.path.realpath(__file__)) #<--get current directory where this Python script located
+    print('The location for this Report creater script= '+myDir)
+
+    #0: get credential for dispatch and shards, please put your DB credentail into your home directory file "~/.my.cnf" 
+    
+    configParser = configparser.RawConfigParser()
+    configParser.read('%s/.my.cnf' % os.path.expanduser('~'))
+    myUser=''
+    myPassword=''
+    try:
+       myUser = configParser.get('oracle', 'user')
+       myPassword = configParser.get('oracle', 'password')
+    except (configparser.NoSectionError, configparser.NoOptionError) as e:
+        print('FAILED: Reading ini file for username/password - Reason: %s' % e)
+    
+    print('Got your user name %s and passwd'%(myUser))
+
+    start_time=time.time()
+
+    #Task1:Start process file "./etlData/Drug_database_master_20220429.txt", mapping to table variant_drug and variant_drug_class in MySQL
+
+    dataFileName='Drug_database_master_20220429.txt'
+
+    #dataFileName="Variant_database_master_20220429.txt"
+    #dataFileName='ODP_database_master_20220429.txt'
+    #dataFileName='Linked_report_database_20220429.txt'
+    dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'etlData'
+
+    # convert to UTF-8
+    os.system('vim +"set nobomb | set fenc=utf8 | x" '+dataFileFullPath)
+
+    print('\n---Start to process file %s---\n\n'%(dataFileFullPath))
+    #with open(dataFileFullPath,'rb') as f:
+    with open(dataFileFullPath,encoding="utf8", errors='ignore') as f: #<--most file is charset=utf-16le
+        contents = f.read()
+    #contents = contents.decode("utf-16")
+    contents = contents.split("\n")
+
+    myBOList=boList()  #<--List to hold tumple for new data insert
+
+    i=0
+    for line in  contents:
+        #print(line)
+        #print('-------New line: line#i='+str(i)+", length="+str(len(line))+"\n")
+        cols=str(line).split('\t') #line is TSV
+        if len(cols)>1: 
+            print('--New line: line#i='+str(i)+", length="+str(len(line))+ " This line has total "+ str(len(cols))+" columns, see below \n")
+            i=i+1 
+            j=0
+            for col in cols:
+                print(col+"\n") 
+                j=j+1 
+            print('-----------------------\n')
+
+            if i!=1: #<--skip first line which is title line
+               myBOList.BOList.append(drugBO(cols[0],cols[1],cols[2],cols[3],cols[4],cols[5],cols[6],cols[7],cols[8],cols[9],cols[10],date.today(),cols[11]))                
+    
+    #myBOList.toTupleList('/home/liuk8/ora2pg/%s'%(dataFileName)) #<----save dataset into file for furtehr process 
+    print('\n-----convert the dataset from file into below tuple list for insert -------\n')
+    #print(myBOList.toTupleList())  
+    insertSQL='''
+INSERT INTO `opendata_cms_dev`.`variant_drugn`
+(`id`,
+`drug_name`,
+`drug_class`,
+`priority`,
+`alias1`,
+`alias2`,
+`alias3`,
+`alias4`,
+`alias5`,
+`unii`,
+`cas`,
+`date_updated`,
+`drug_company`)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s)
+'''
+##now , run "create table `opendata_cms_dev`.`variant_drugn` as select *  from `opendata_cms_dev`.`variant_drug`; "
+
+    mysql="truncate `opendata_cms_dev`.`variant_drugn`"
+    drugDA.runSQL(mysql)
+    drugDA.runInsertListOfTuple(insertSQL, myBOList.toTupleList())
+
+         
+
+    print('\n\nTotall lines in file='+str(i))
+
+    print('\n---End ETL---\n')
+  
+    print("Time used :", time.time() - start_time)
+ 

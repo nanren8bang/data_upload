@@ -1,0 +1,40 @@
+class report:
+    def __init__(self,comment):
+        self.comment=comment  
+
+    def __str__(self):
+        return "This class hold report detail values for EmpoweredBenefits.com  "
+
+    def toCSV(self):
+        tempStr=''
+        tempStr+=self.comment.strip() if isinstance(self.comment,str) else str(self.comment).strip()
+        tempStr+='\n'
+        return tempStr
+
+    def toTSV(self):
+        tempStr=''
+        tempStr+=self.comment.strip() if isinstance(self.comment,str) else str(self.comment).strip()
+        tempStr+='\n'
+        return tempStr
+
+
+    def toTuple(self):
+        return  (self.comment)
+       
+    @classmethod
+    def fromTuple(cls,myTuple):
+        #return cls(myTuple['comment'] )
+        return cls(myTuple[0] )
+        #print('covert tuple to string: '+''.join(myTuple))
+        #return cls(''.join(myTuple) )
+
+
+    @classmethod
+    def getHeaderCSV(cls):
+        return  'comment'+'\n'
+    
+    @classmethod
+    def getHeaderTSV(cls):
+        return  'comment'+'\t'+'\n'
+
+

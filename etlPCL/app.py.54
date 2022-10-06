@@ -1,0 +1,74 @@
+
+import importlib
+import os
+import time
+import configparser
+import concurrent.futures
+import subprocess
+
+
+def execute_command(command, exit_script = 1):
+
+    print('Will excute  commad '+command+"\n")
+
+    p = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    response, error = p.communicate()
+    if error:
+        print("FAILED to run command: %s - Reason: %s"%(command,error))
+        os.killpg(os.getpgrp(),2)
+    return response, error
+
+
+def main():
+    myDir     = os.path.dirname(os.path.realpath(__file__)) #<--get current directory where this Python script located
+    print('The location for this Report creater script= '+myDir)
+    dataFileName="Variant_database_master_20220429.txt"
+    #dataFileName='ODP_database_master_20220429.txt'
+    #dataFileName='Linked_report_database_20220429.txt'
+    dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'data'
+    print('\n---Start to process file %s---\n\n'%(dataFileFullPath))
+
+    #0: get credential for dispatch and shards, please put your DB credentail into your home directory file "~/.my.cnf" 
+    
+    configParser = configparser.RawConfigParser()
+    configParser.read('%s/.my.cnf' % os.path.expanduser('~'))
+    myUser=''
+    myPassword=''
+    try:
+       myUser = configParser.get('oracle', 'user')
+       myPassword = configParser.get('oracle', 'password')
+    except (configparser.NoSectionError, configparser.NoOptionError) as e:
+        print('FAILED: Reading ini file for username/password - Reason: %s' % e)
+    
+    print('Got your user name %s and passwd'%(myUser))
+
+    start_time=time.time()
+
+    ##Taks1: open file and read line by line
+
+    print('\n---Start to process file %s---\n\n'%(dataFileFullPath))
+    #with open(dataFileFullPath,'rb') as f:
+    with open(dataFileFullPath,encoding="utf8", errors='ignore') as f: #<--most file is charset=utf-16le
+        contents = f.read()
+    #contents = contents.decode("utf-16")
+    contents = contents.split("\n")
+    i=0
+    for line in  contents:
+        if line.strip() and line.strip() !="\n":
+            print("line length="+str(len(line)))
+            i=i+1
+            print(line)
+            print("\ni="+str(i)+"\n")
+            cols=str(line).split(' ')
+            j=0
+            for col in cols:
+                print(col+"\n") 
+                j=j+1  
+            print("This line has cols="+str(j)+"\n")
+
+    print('Totall lines in file='+str(i))
+
+    print('\n---End ETL---\n')
+  
+    print("Time used :", time.time() - start_time)
+ 
