@@ -74,26 +74,20 @@ def main():
     file6='Variant_database_master_20220930.txt'
     file7='related_resources-20220617.txt'
 
-    myDir     = os.path.dirname(os.path.realpath(__file__)) #<--get current directory where this Python script located
+    myDir     = os.path.dirname(os.path.realpath(__file__))  
 
     start_time=time.time()
 
-    #Task 1: Start process file "./etlData/Drug_database_master_20220429.txt", mapping to table variant_drug and variant_drug_class in MySQL
-
-    #dataFileName='Drug_database_master_20220429.txt'
+    #Task 1:  
     dataFileName=file1
 
     dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'etlData'
-
-    # convert to UTF-8
     os.system('vim +"set nobomb | set fenc=utf8 | x" '+dataFileFullPath)
-
-    
     insertVal=None
     with open(dataFileFullPath, 'r') as f:
-        # pass the file object to reader() to get the reader object
+         
         myCSVReader = reader(f,delimiter='\t', quotechar='"')
-        # Get all rows of csv from csv_reader object as list of tuples
+         
         insertVal = list(map(tuple, myCSVReader))
 
     insertSQL="INSERT INTO variant_drug (id,drug_name,drug_class,priority,alias1,alias2,alias3,alias4,alias5,unii,cas,drug_company) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
@@ -104,48 +98,44 @@ def main():
     drugDA.runSQL('commit')
     drugDA.runSQL('truncate table variant_drug;') #<---delete all recodrs in table variant_drug
   
-    #drugDA.runSQL('alter table therapeutic_glossary DROP FOREIGN KEY fk_drugid') #<---delete all recodrs in table variant_drug
+    
     drugDA.runSQL('commit')
     drugDA.runInsertListOfTuple(insertSQL, insertVal)
     drugDA.runSQL('commit')
    
     drugDA.runSQL('update variant_drug set date_updated=now();')
-    #drugDA.runSQL('alter table therapeutic_glossary add  CONSTRAINT `fk_drugid` FOREIGN KEY (`drug_id`) REFERENCES `variant_drug` (`id`)')
+     
     drugDA.runSQL('commit')
     drugDA.runSQL('SET SQL_SAFE_UPDATES = 1')
     drugDA.runSQL('commit')
     print('\n---total records were inserted into table variant_drug is: '+str(len(insertVal))+' from file '+dataFileFullPath)
 
-    #Task 2: Start process file "./etlData/In_Vivo_Database_Master_20220429.txt"i for table `opendata_cms_dev`.`variant_in_vivo`, please replace space with undr-scale in file name 
-
-    #dataFileName='In_Vivo_Database_Master_20220429.txt'
+    #Task 2:  
     dataFileName=file2
 
     dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'etlData'
 
-    # convert to UTF-8
+   
     os.system('vim +"set nobomb | set fenc=utf8 | x" '+dataFileFullPath)
 
  
     insertVal=[]
     listOfDicts = []
-    with open(dataFileFullPath,'r') as f: #<---first import to List Of Dict
+    with open(dataFileFullPath,'r') as f:  
 
         listOfDicts = [
             {k: v for k, v in row.items()}  
             for row in DictReader(f, skipinitialspace=True, delimiter='\t')
         ]
 
-    for dt in listOfDicts:   #<---then convert to List of tuple for Python connector insertMany method   
+    for dt in listOfDicts:    
 
             if dt['Report_Number']:
 
-                #reportedDate = dbTool.dbTool.parseDate(dt['Reported_Date'])
-                #dataUpdatedDate = dbTool.dbTool.parseDate(dt['Data_Updated_Date'])
+                 
                 reportedDate = toYYYYMMDD(dt['Reported_Date'])
                 dataUpdatedDate = toYYYYMMDD(dt['Data_Updated_Date'])
-                #print('before reportDate=%s,after %s'%(dt['Reported_Date'],reportedDate)) 
-                #print('before dataUpdatedDate=%s,after %s'%(dt['Data_Updated_Date'],dataUpdatedDate))
+                 
                 insertVal.append((
                     dt['Report_Number'],
                     dt['Provider'],
@@ -243,9 +233,7 @@ def main():
                ,%s, %s
             )
            """
-
-    #print(insertVal)
-
+ 
     mysql="truncate table variant_in_vivo" #<---delete all recodrs in table 
     drugDA.runSQL(mysql) 
     drugDA.runSQL('commit')
@@ -259,35 +247,23 @@ def main():
 
     print('\n---total records were inserted into table variant_in_vivo is: '+str(len(insertVal))+' from file '+dataFileFullPath)
 
-    #Task 3: Start process file "./etlData/Linked_report_database_20220429.txt", mapping to table variant_linked_report in MySQL
-
-    #dataFileName='Linked_report_database_20220429.txt'
+    #Task 3:  
     dataFileName=file3
 
-    dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'etlData'
-
-    # convert to UTF-8
+    dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName)  
     os.system('vim +"set nobomb | set fenc=utf8 | x" '+dataFileFullPath)
-
-    #print('--Below start csv.reader to reterieve all records from tsv--')
-    
+ 
     insertVal=None
     with open(dataFileFullPath, 'r') as f:
-        # pass the file object to reader() to get the reader object
+         
         myCSVReader = reader(f,delimiter='\t', quotechar='"')
-        # Get all rows of csv from csv_reader object as list of tuples
+         
         insertVal = list(map(tuple, myCSVReader))
-    #print('\n---Done Of CSV.reader----\n')
-
+     
     insertSQL="insert into variant_linked_report (report_number,linked_report_number, linked_report_version) VALUES  (%s, %s, %s)"
-    insertVal=insertVal[1:]  #remove the header from myCSVReader
+    insertVal=insertVal[1:]   
 
-    mysql="truncate table variant_linked_report" #<---delete all recodrs in table variant_linked_report. 
-                                                 #There is 1 to 1 relation between table  variant_linked_report and variant3_dataset by report_number
-                                                 #The 1 to 1 relation was maintain in hibernate/Java code level 
-                                                 ##see: https://github.com/ncats/odp-covid19-api/blob/b82e4e8491f747c7ec551a86165d0cb5bd35f28a/src/main/java/gov/nih/ncats/odp/covid19/api/entity/cms/variant/InVitroLinkedReport.java
-                                                 #Also , the report number should match in table variant3_dataset(select report_number   from variant3_dataset order by 1)  and variant3(select distinct report_number   from variant3 order by 1)
-  
+    mysql="truncate table variant_linked_report"  
     drugDA.runSQL(mysql) 
     drugDA.runSQL('commit')
     drugDA.runInsertListOfTuple(insertSQL, insertVal)
@@ -301,23 +277,17 @@ def main():
 
 
 
-    #Task 4: Start process file "./etlData/ODP_database_master_20220429.txt", mapping to table variant_linked_report in MySQL
+    
 
-    dataFileName='ODP_database_master_20220429.txt'
-    ## Move this part to the last part of this file due to it's complexity 
-
-
-    #Task 5: Start process file "./etlData/OOS_database_master_20220429.txt", mapping to table variant_oos in MySQL
-
-    #dataFileName='OOS_database_master_20220429.txt'
+    #Task 5:  
     dataFileName=file5
 
     dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'etlData'
 
-    # convert to UTF-8
+     
     os.system('vim +"set nobomb | set fenc=utf8 | x" '+dataFileFullPath)
 
-    #print('--Below start csv.reader to reterieve all records from tsv--')
+   
     
     insertVal=[]
     listOfDicts = []
@@ -328,13 +298,13 @@ def main():
             for row in DictReader(f, skipinitialspace=True, delimiter='\t')
         ]
 
-    for dt in listOfDicts:   #<---then convert to List of tuple for Python connector insertMany method   
+    for dt in listOfDicts:   
 
-            if dt['oos_report_number']:  #<---prmary key check
+            if dt['oos_report_number']:   
 
-                #oos_data_date = dbTool.dbTool.parseDate(dt['oos_data_date'])
+               
                 oos_data_date = toYYYYMMDD(dt['oos_data_date'])
-                #print('oos_data_date,before convert %s, after convert %s'%(dt['oos_data_date'],oos_data_date)) 
+                 
                 insertVal.append((
                     dt['oos_report_number'],
                     dt['oos_data_provider'],
@@ -353,10 +323,9 @@ def main():
 
 
     insertSQL="insert into variant_oos (report_number, data_provider, data_title,data_source, data_source_2, data_date,data_type, assay_type, viral_lineage, drug_name) VALUES (%s, %s, %s, %s, %s, %s, %s, %s,  %s, %s)"
+ 
 
-    #insertVal=insertVal[1:]  #remove the header from myCSVReader
-
-    mysql="truncate table  variant_oos" #<---delete all recodrs in table 
+    mysql="truncate table  variant_oos" 
     drugDA.runSQL(mysql)
     drugDA.runSQL('commit') 
     drugDA.runInsertListOfTuple(insertSQL, insertVal)
@@ -369,30 +338,28 @@ def main():
 
     print('\n---total records were inserted into table variant_oos is: '+str(len(insertVal))+' from file '+dataFileFullPath)
 
-    #Task 6 :Start process file "./etlData/Variant_database_master_20220429.txt", mapping to table `opendata_cms_dev`.`viral_meta` in MySQL
-
-    #dataFileName='Variant_database_master_20220429.txt'
+    #Task 6  
     dataFileName=file6 
 
     dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'etlData'
 
-    # convert to UTF-8
+    
     os.system('vim +"set nobomb | set fenc=utf8 | x" '+dataFileFullPath)
 
-    #print('--Below start csv.reader to reterieve all records from tsv--')
+    
     
     insertVal=None
     with open(dataFileFullPath, 'r') as f:
-        # pass the file object to reader() to get the reader object
+         
         myCSVReader = reader(f,delimiter='\t', quotechar='"')
-        # Get all rows of csv from csv_reader object as list of tuples
+         
         insertVal = list(map(tuple, myCSVReader))
-    #print('\n---Done Of CSV.reader----\n')
+    
 
     insertSQL="insert into viral_meta (id,viral_lineage,viral_classification,viral_rank, WHO_name) VALUES (%s, %s, %s, %s,%s)"
-    insertVal=insertVal[1:]  #remove the header from myCSVReader
+    insertVal=insertVal[1:]   
 
-    mysql="truncate table viral_meta" #<---delete all recodrs in table variant_drug
+    mysql="truncate table viral_meta"  
     drugDA.runSQL(mysql) 
     drugDA.runInsertListOfTuple(insertSQL, insertVal)
 
@@ -405,30 +372,18 @@ def main():
 
 
 
-    #Task 4: Start process file "./etlData/ODP_database_master_20220429.txt", mapping to table variant_linked_report in MySQL
-
-
-    #There is 1 to 1 relation between table  variant_linked_report and variant3_dataset by report_number
-    #The 1 to 1 relation was maintain in hibernate/Java code level 
-    ##see: https://github.com/ncats/odp-covid19-api/blob/b82e4e8491f747c7ec551a86165d0cb5bd35f28a/src/main/java/gov/nih/ncats/odp/covid19/api/entity/cms/variant/InVitroLinkedReport.java
-    
-
-    #Also , the report number should match in table variant3_dataset(select report_number   from variant3_dataset order by 1)  and variant3(select distinct report_number   from variant3 order by 1)
-
-
-    #dataFileName='ODP_database_master_20220429.txt'
+    #Task 4:  
     dataFileName=file4
 
-    dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'etlData'
+    dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) 
 
-    # convert to UTF-8
+    
     os.system('vim +"set nobomb | set fenc=utf8 | x" '+dataFileFullPath)
 
-    #print('--Below start csv.reader to reterieve all records from tsv--')
-    
+     
     insertVal=[]
 
-    #1. the list of dicts read from file, one dict represents a row
+     
     listOfDicts = []
     with open(dataFileFullPath,'r') as f: #<---first import to List Of Dict
 
@@ -436,67 +391,65 @@ def main():
             {k: v for k, v in row.items()}  
             for row in DictReader(f, skipinitialspace=True, delimiter='\t')
         ]
-    #filter out empty rows
+     
     listOfDicts = list(filter(lambda d: len(d['report_number'])>0, listOfDicts))
 
-    #2. split viral_lineage if contains ',' (multiple viral_lineage)
+     
     listOfDictsViralLineageSplitted = []
 
     for dt in listOfDicts:
 
-        dt['ref_id'] = None # add ref_id for every row
+        dt['ref_id'] = None  
 
         viralLineage = dt['viral_lineage']
 
         if viralLineage is not None:
             temp = viralLineage.strip().split(',')
 
-            if len(temp) > 1: # multiple viral_lineages
+            if len(temp) > 1:  
                 for vl in temp:
                     dt['ref_id'] = str(uuid.uuid1()) ##nedd to "import uuid"
                     dt['viral_lineage'] = vl.strip()
                     dt['viral_name'] = vl.strip()
 
                     listOfDictsViralLineageSplitted.append(dt)
-            else:# only one viral_lineage
-                #trim and save back
+            else: 
+                 
                 dt['viral_lineage'] = viralLineage.strip()
                 listOfDictsViralLineageSplitted.append(dt)
-        else: # no viral_lineage
+        else: 
             listOfDictsViralLineageSplitted.append(dt)
 
 
-    #3. create big dictionary of list of tuples(rows): key = report_number, value = list of tuples(rows)
+   
     bigDictOfListTuples = {}
 
-    for dt in listOfDictsViralLineageSplitted: # a 'dt' represents a dict of a row
+    for dt in listOfDictsViralLineageSplitted:  
 
         reportNumber = dt['report_number']
 
-        # process special data 1 --- for full text search
+        
         viral_lineage_fulltext_search = None
         viralLineage = dt['viral_lineage']
 
         if viralLineage is not None:
             viral_lineage_fulltext_search = viralLineage.replace('.', '_')
             
-        # process special data 2 --- date string to Date object
+         
         dataDate = toYYYYMMDD(dt['data_date'])
-        #print('before convert data_date=%s,after convertion=%s'%(dt['data_date'],dataDate))
- 
+         
         dataUpdatedDate = toYYYYMMDD(dt['data_updated_date'])
-        #print('before convert data_updated_date=%s,after convertion=%s'%(dt['data_updated_date'],dataUpdatedDate))
-        # process special data 3 --- convert empty string to None
+        
         drug_activity1_numeric_fold = dt['drug_activity1_numeric_fold']
         if len(drug_activity1_numeric_fold.strip()) <= 0:
             drug_activity1_numeric_fold = None
         
-        # each row as a tuple
+        
         sublistOfTuples = [] # key=report_number, value=sublistOfTuples
         if reportNumber in bigDictOfListTuples.keys():
             sublistOfTuples = bigDictOfListTuples[reportNumber]
                 
-        # add a tuple(row) to sublistOfTuples
+         
         sublistOfTuples.append(
             (
             dt["data_title"],
@@ -588,11 +541,10 @@ def main():
             )
         )
 
-        # put sublistOfTuples to bigDictOfListTuples by report_number
+         
         bigDictOfListTuples[reportNumber] = sublistOfTuples
 
-    #4. insert
-
+   
     insertSQL= """
 				insert into variant3 (
 				data_title, data_source,  data_source_type, 
@@ -638,31 +590,27 @@ def main():
                 %s
 				)
                 """ 
-    # keys are report_numbers
-    # Start insert into table variant3
+    
     totalRec=0
     for reportNum in bigDictOfListTuples.keys():
 
-        # delete table rows by report_number 
+         
         mysql = 'delete from variant3 where report_number ='+reportNum
         drugDA.runSQL(mysql)
         drugDA.runSQL('commit')
-        # Insert into table by report_number
-
+        
         insertVal = bigDictOfListTuples[reportNum]  #insertVal is list of tuples
 
         drugDA.runSQL('commit')
         totalRec=totalRec+len(insertVal)
         drugDA.runInsertListOfTuple(insertSQL, insertVal)
-        #drugDA.runSQL('commit')
-        #drugDA.runSQL('SET SQL_SAFE_UPDATES = 0')
+         
         drugDA.runSQL('update variant3 set date_uploaded=now() where report_number ='+reportNum)
-        #drugDA.runSQL('update variant3 set data_updated_date=now() where report_number ='+reportNum)
-        #drugDA.runSQL('SET SQL_SAFE_UPDATES = 1')
+         
         drugDA.runSQL('commit')     
     print('\n---total records were inserted into table variant3 is: '+str(totalRec)+' from file '+dataFileFullPath)
     
-    #5. check viral_lineage_id and drug_name_id
+     
     updateViralLineageId = '''update variant3 v 
              set v.viral_meta_id = (select m.id from viral_meta m 
              where v.viral_lineage=m.viral_lineage)'''
@@ -675,21 +623,18 @@ def main():
     drugDA.runSQL(updateVariantDrugId)
     drugDA.runSQL('commit')
 
-    #6. update variant3_dataset table #########################################
-
-    #6.0 truncate table 
-
-    mysql="truncate table variant3_dataset" #<---delete all recodrs in table 
+    
+    mysql="truncate table variant3_dataset"  
     drugDA.runSQL(mysql)
     drugDA.runSQL('commit')
-    ##6.1 insert eport_number, data_title, data_provider
+     
     mysql = '''insert into  variant3_dataset 
                         (report_number, data_title, data_provider) 
                 (select  report_number, data_title, data_provider from variant3 group by report_number, data_title, data_provider)
                 '''
     drugDA.runSQL(mysql)
     drugDA.runSQL('commit')
-    ##6.2 update data_date
+     
     mysql = '''update variant3_dataset  vd
                 set vd.data_date= 
                     (select max(v.data_date) from variant3 v  where v.report_number = vd.report_number group by v.report_number)
@@ -697,7 +642,7 @@ def main():
 
     drugDA.runSQL(mysql)
     drugDA.runSQL('commit')
-    #6.3. update data_updated_date   
+     
     mysql = '''update variant3_dataset vd
                 set vd.data_updated_date = 
                     (select max(v.data_updated_date) from variant3 v  where v.report_number = vd.report_number  group by v.report_number)
@@ -705,7 +650,7 @@ def main():
     drugDA.runSQL(mysql)
     drugDA.runSQL('commit')
 
-    #6.4. update file_name       
+      
     mysql = '''update variant3_dataset 
                 set file_name =  
                     concat( REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(data_title,',',''),';',''),'"',''),'\'\'',''),':',''), '.tsv')
@@ -713,7 +658,7 @@ def main():
     drugDA.runSQL(mysql)
     drugDA.runSQL('commit')
 
-    #6. 5. update data_source
+     
     mysql = '''update variant3_dataset vd 
                 set vd.data_source = 
                     (SELECT v.data_source
@@ -725,7 +670,7 @@ def main():
                 '''
     drugDA.runSQL(mysql)
     drugDA.runSQL('commit')
-    #6. 6. update data_source_2
+     
     mysql = '''update variant3_dataset vd 
                 set vd.data_source_2 = 
                     (   select 
@@ -738,7 +683,7 @@ def main():
                 '''
     drugDA.runSQL(mysql)
     drugDA.runSQL('commit')
-    #6.7. update data_clob
+    
 
     sql_columns = 'viral_lineage_full, viral_type, viral_protein_full_partial, viral_aa_mutation, assay_type, drug_name, drug_class, activity_fold_change, activity_summary, drug_notes, viral_var_ref, drug_ref,viral_protein_backbone, viral_full_strain_type, viral_full_strain_source,data_provider, data_title, report_number, data_source, data_source_2, data_source_type,drug_activity1_name, drug_activity1, drug_activity1_unit, drug_activity2_name, drug_activity2, drug_activity2_unit, drug_activity3_name, drug_activity3,data_date, data_updated_date'
         
@@ -760,14 +705,10 @@ def main():
     drugDA.runSQL('commit')
 
 
-    #Task 7: Start process file "./etlData/related_resources-20220603.txt", mapping to table variant_related_resource  in MySQL
-
-    #dataFileName='Drug_database_master_20220429.txt'
+    #Task 7 
     dataFileName=file7
 
-    dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName) ##<--dataset in curret path's sub folder 'etlData'
-
-    # convert to UTF-8
+    dataFileFullPath  = '%s/%s/%s' % (os.path.abspath('.'),'etlData',dataFileName)  
     os.system('vim +"set nobomb | set fenc=utf8 | x" '+dataFileFullPath)
 
     listOfDicts = []
@@ -778,9 +719,9 @@ def main():
             for row in DictReader(f, skipinitialspace=True, delimiter='\t')
         ]
 
-    insertVal=[] #List of Tuple for insert
+    insertVal=[]  
 
-    for dt in listOfDicts:   #<---then convert to List of tuple for Python connector insertMany method   
+    for dt in listOfDicts:    
     
         insertVal.append((
                 dt['section_id'],
@@ -793,13 +734,11 @@ def main():
                 dt['display_order']
             ))
 
-    #insertVal=insertVal[1:]  #remove the header from myCSVReader,  ut later found this is NOT needed
+     
    
     insertSQL="INSERT INTO variant_related_resource (section_id, section, section_order, site_title, site_link, site_description, display, display_order) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)"
 
-    #for t in insertVal:
-    #    print(t)
-
+     
     mysql="truncate table variant_related_resource" #<---delete all recodrs in table variant_drug
     drugDA.runSQL(mysql) 
     drugDA.runSQL('commit')
